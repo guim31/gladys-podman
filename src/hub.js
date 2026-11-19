@@ -191,8 +191,8 @@ export class PodmanHub {
   // --- Reading -------------------------------------------------------------------
 
   /** Read Podman and publish what changed. */
-  async pollNow({ publish = false } = {}) {
-    const widgetChanged = await this.poll();
+  async pollNow({ publish = false, fresh = false } = {}) {
+    const widgetChanged = await this.poll({ fresh });
     await this.publishDevices({ force: publish });
     await this.publishStates();
     await this.publishTransports();
@@ -210,12 +210,19 @@ export class PodmanHub {
   }
 
   /**
-   * One read of Podman. Concurrent calls share it.
+   * One read of Podman. Concurrent calls share it, except a `fresh` one: it
+   * waits for the read in flight (started before an operation, it may show
+   * the old state) and makes a new one.
    * @returns {Promise<boolean>} whether the widget should be refreshed now
    */
-  poll() {
+  async poll({ fresh = false } = {}) {
     if (!this.client) {
-      return Promise.resolve(false);
+      return false;
+    }
+    if (fresh) {
+      while (this.polling) {
+        await this.polling.catch(() => {});
+      }
     }
     if (!this.polling) {
       const generation = this.generation;
@@ -676,7 +683,7 @@ export class PodmanHub {
       );
     }
     logger.info(`${operation} ${name}${changed ? '' : ' (nothing to do)'}`);
-    await this.pollNow();
+    await this.pollNow({ fresh: true });
     this.watcher.done(name);
     const now = this.snapshot?.containers.find((c) => c.name === name);
     return {

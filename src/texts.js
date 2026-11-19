@@ -112,6 +112,12 @@ export const ACTION_TEXT = {
     de: 'Dieser Container existiert auf der Podman-Maschine nicht mehr.',
     es: 'Este contenedor ya no existe en la máquina Podman.',
   },
+  unknownAction: {
+    en: 'Unknown action: reload the dashboard.',
+    fr: 'Action inconnue : rechargez le tableau de bord.',
+    de: 'Unbekannte Aktion: Lade das Dashboard neu.',
+    es: 'Acción desconocida: vuelva a cargar el panel.',
+  },
   unreadable: {
     en: 'Podman cannot be read right now',
     fr: 'Podman est illisible pour le moment',

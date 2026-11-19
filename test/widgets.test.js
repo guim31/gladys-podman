@@ -122,3 +122,17 @@ test('not configured, or Podman silent: said in words', async (t) => {
   const c = await content(w, {}, 'fr');
   assert.equal(c.components[1].text, "Home server : le service d'API Podman ne répond pas");
 });
+
+test('Refresh fails in red when Podman does not answer, or for an unknown key', async (t) => {
+  const w = await world(t);
+  w.podman.failure = 'down';
+  const ack = await w.fake.widgetAction(WIDGET_KEY, 'refresh', {}, {});
+  assert.equal(ack.success, false);
+  assert.equal(ack.error.fr, "Home server : le service d'API Podman ne répond pas");
+  const unknown = await w.fake.widgetAction(WIDGET_KEY, 'dance', {}, {});
+  assert.equal(unknown.success, false);
+  assert.ok(unknown.error.de);
+  const empty = await world(t, { config: {} });
+  const none = await empty.fake.widgetAction(WIDGET_KEY, 'refresh', {}, {});
+  assert.equal(none.success, false);
+});

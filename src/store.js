@@ -1,11 +1,12 @@
 // -----------------------------------------------------------------------------
 // Small persistence under /data (the only writable path of the container):
-// what the scene triggers compare with — the nodes not ready, the degraded
-// workloads and the crash loops already announced — so that a restart of
-// the integration or of Gladys neither misses a transition nor announces one
+// what the scene triggers compare with — the last state, health and restart
+// count of each container, the containers seen with a healthcheck, and
+// whether "Podman unreachable" was announced — so that a restart of the
+// integration or of Gladys neither misses a transition nor announces one
 // twice. Losing the file is harmless: the first read after it only records
 // the states, without scene events.
-// (Adapted from guim31/gladys-glances.)
+// (Adapted from guim31/gladys-kubernetes.)
 // -----------------------------------------------------------------------------
 
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';

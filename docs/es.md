@@ -132,7 +132,7 @@ ajustes para tener los botones **Iniciar** o **Detener** y **Reiniciar**;
   contenedor, estado, código de salida, reinicios.
 - **Contenedor con mala salud**: el healthcheck de un contenedor falla
   (Podman lo marca unhealthy tras sus intentos); se anuncia de nuevo tras
-  volver a buen estado.
+  recuperarse o reiniciarse.
 - **Podman inaccesible**: el servicio de API ya no responde (dos lecturas
   seguidas, con 15 segundos de intervalo); se anuncia una vez por avería.
 

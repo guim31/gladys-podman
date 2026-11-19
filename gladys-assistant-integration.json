@@ -516,10 +516,10 @@
         "es": "Contenedor con mala salud"
       },
       "description": {
-        "en": "The healthcheck of a container fails (Podman marks it unhealthy). Announced again once healthy.",
-        "fr": "Le healthcheck d'un conteneur échoue (Podman le marque unhealthy). Annoncé de nouveau après un retour en bonne santé.",
-        "de": "Der Healthcheck eines Containers schlägt fehl (Podman markiert ihn als unhealthy). Erneut gemeldet, wenn er wieder gesund war.",
-        "es": "El healthcheck de un contenedor falla (Podman lo marca unhealthy). Se anuncia de nuevo tras volver a buen estado."
+        "en": "The healthcheck of a container fails (Podman marks it unhealthy). Announced again after a recovery or a restart.",
+        "fr": "Le healthcheck d'un conteneur échoue (Podman le marque unhealthy). Annoncé de nouveau après un rétablissement ou un redémarrage.",
+        "de": "Der Healthcheck eines Containers schlägt fehl (Podman markiert ihn als unhealthy). Erneut gemeldet nach Erholung oder Neustart.",
+        "es": "El healthcheck de un contenedor falla (Podman lo marca unhealthy). Se anuncia de nuevo tras recuperarse o reiniciarse."
       },
       "fields": [
         {

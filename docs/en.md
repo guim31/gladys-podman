@@ -127,7 +127,8 @@ settings to get **Start** or **Stop** and **Restart** buttons for it;
   without Gladys asking. A stop asked by Gladys (switch, action, widget,
   scene) fires nothing. Variables: container, state, exit code, restarts.
 - **Container unhealthy**: the healthcheck of a container fails (Podman marks
-  it unhealthy after its retries); announced again once it was healthy.
+  it unhealthy after its retries); announced again after it
+  recovered or restarted.
 - **Podman unreachable**: the API service no longer answers (two reads in a
   row, 15 seconds apart); announced once per outage.
 

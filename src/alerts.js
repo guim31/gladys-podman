@@ -107,12 +107,8 @@ export class Watcher {
           found.stopped.push({ ...container, previousRestarts: previous.restarts ?? 0 });
         }
       }
-      if (
-        this.seeded &&
-        previous &&
-        container.health === 'unhealthy' &&
-        previous.health !== 'unhealthy'
-      ) {
+      // A container created since the last read, already unhealthy, counts too.
+      if (this.seeded && container.health === 'unhealthy' && previous?.health !== 'unhealthy') {
         found.unhealthy.push(container);
       }
       this.containers[name] = {

@@ -332,3 +332,61 @@ test('the container reads Podman on its own timer, without any poll from Gladys'
   assert.ok(reads() > before, 'read again by the timer');
   assert.equal(w.fake.lastState(feature(w, 'web', 'running')), 0);
 });
+
+test('a stop asked while a read is in flight never fires a trigger, and reads the new state', async (t) => {
+  const w = await world(t);
+  const fetch = w.podman.fetch;
+  let releaseStop;
+  const stopHeld = new Promise((resolve) => {
+    releaseStop = resolve;
+  });
+  let stopDone;
+  const stopAnswered = new Promise((resolve) => {
+    stopDone = resolve;
+  });
+  let holdList = false;
+  w.hub.client.fetch = async (url, options = {}) => {
+    if (options.method === 'POST' && url.includes('/stop')) {
+      await stopHeld;
+      const response = await fetch(url, options);
+      stopDone();
+      return response;
+    }
+    if (holdList && url.includes('/containers/json')) {
+      // This read saw the container running: its answer arrives after the stop.
+      holdList = false;
+      const response = await fetch(url, options);
+      await stopAnswered;
+      return response;
+    }
+    return fetch(url, options);
+  };
+  const action = w.fake.sceneAction('stop_container', { container: containerId(w.gladys, 'web') });
+  await sleep(10);
+  // The timer's read starts while Podman is still stopping the container.
+  holdList = true;
+  const timerRead = w.hub.pollNow();
+  await sleep(10);
+  releaseStop();
+  const ack = await action;
+  await timerRead;
+  assert.deepEqual(ack.data.outputs, { container_name: 'web', running: false });
+  w.clock.advance(30_000);
+  await w.hub.pollNow();
+  assert.deepEqual(events(w, TRIGGERS.STOPPED), []);
+});
+
+test('a container created already unhealthy is announced', async (t) => {
+  const w = await world(t);
+  w.podman.containers.push({
+    ...structuredClone(w.podman.container('web')),
+    Names: ['newcomer'],
+    Id: 'f'.repeat(64),
+    Status: 'unhealthy',
+  });
+  await w.hub.pollNow();
+  assert.deepEqual(
+    events(w, TRIGGERS.UNHEALTHY).map((event) => event.data.container_name),
+    ['newcomer'],
+  );
+});

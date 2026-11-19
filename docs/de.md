@@ -135,8 +135,8 @@ neu. Die Liste und jede Schaltfläche lassen sich ausblenden.
   Gladys verlangtes Stoppen (Schalter, Aktion, Widget, Szene) löst nichts aus.
   Variablen: Container, Zustand, Exit-Code, Neustarts.
 - **Container fehlerhaft**: Der Healthcheck eines Containers schlägt fehl
-  (Podman markiert ihn nach seinen Versuchen als unhealthy); erneut gemeldet,
-  wenn er wieder gesund war.
+  (Podman markiert ihn nach seinen Versuchen als unhealthy); erneut gemeldet
+  nach Erholung oder Neustart.
 - **Podman nicht erreichbar**: Der API-Dienst antwortet nicht mehr (zwei
   Lesevorgänge in Folge, im Abstand von 15 Sekunden); einmal pro Ausfall
   gemeldet.

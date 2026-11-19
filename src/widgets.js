@@ -21,7 +21,7 @@ import { DEVICE_TYPES, containerDeviceId, deviceIds, parseDeviceId } from './dev
 import { WIDGET_KEY } from './hub.js';
 import { OPERATIONS } from './podman/client.js';
 import { HEALTH } from './podman/model.js';
-import { errorText, labelled, pick } from './texts.js';
+import { ACTION_TEXT, ActionFailure, allLanguages, errorText, labelled, pick } from './texts.js';
 
 // Action keys of the buttons: permanent once published.
 export const ACTIONS = Object.freeze({
@@ -249,12 +249,21 @@ const OPERATION_OF = {
 
 async function action(hub, { actionKey, params = {} }) {
   if (actionKey === ACTIONS.REFRESH) {
+    if (!hub.client) {
+      throw new ActionFailure(ACTION_TEXT.notConfigured);
+    }
     await hub.pollNow();
+    if (hub.error) {
+      const name = hub.config.name;
+      throw new ActionFailure(
+        allLanguages((language) => labelled(name, errorText(hub.error, language), language)),
+      );
+    }
     return { message: TEXT.refreshed };
   }
   const operation = OPERATION_OF[actionKey];
   if (!operation) {
-    throw new Error(`Unknown action ${actionKey}`);
+    throw new ActionFailure(ACTION_TEXT.unknownAction);
   }
   const result = await hub.operate(params.container, operation);
   return { message: result.message };

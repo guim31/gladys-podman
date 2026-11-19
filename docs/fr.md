@@ -133,7 +133,7 @@ réglages pour avoir les boutons **Démarrer** ou **Arrêter** et **Redémarrer*
   Variables : conteneur, état, code de sortie, redémarrages.
 - **Conteneur en mauvaise santé** : le healthcheck d'un conteneur échoue
   (Podman le marque unhealthy après ses essais) ; annoncé de nouveau après un
-  retour en bonne santé.
+  rétablissement ou un redémarrage.
 - **Podman injoignable** : le service d'API ne répond plus (deux lectures de
   suite, à 15 secondes d'intervalle) ; annoncé une fois par panne.
 
