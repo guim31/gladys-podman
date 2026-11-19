@@ -1,61 +1,170 @@
-# Demo Devices Template
+# Podman
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+This integration brings the **containers of a Podman machine** into Gladys:
+one device per container you choose, with its state (running or not), its
+health when it has a healthcheck and its restarts, plus a device for the
+machine itself. A container device is a switch: turn it off to stop the
+container, on to start it. Scenes can react when a container stops without
+Gladys asking or turns unhealthy, and start, stop or restart a container; a
+dashboard widget lists the containers, the problems first.
 
-## What you get
+It talks to the **Podman REST API** on your local network; nothing goes
+through the cloud.
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+Tested against a real Podman 6.2 (the `quay.io/podman/stable` image, rootful):
+the list, the switch, the actions, a container killed behind Gladys' back, a
+failing healthcheck, a container in a pod, an unknown container and a stopped
+API service. Developed without a real Gladys instance: feedback welcome on
+[the issues](https://github.com/guim31/gladys-podman/issues).
 
-## Configuration
+## What you need
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+- Gladys Assistant 5.1.0 or later.
+- A Linux machine running Podman 4.0 or later, reachable from the Gladys
+  machine.
+- A shell on that machine, once, to start the Podman API service.
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+## Getting started
 
-## Actions
+### 1. Start the Podman API service
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+Gladys runs the integration in a sandbox: it cannot reach the Unix socket of
+Podman, only a TCP port. On the Podman machine, with the account that owns the
+containers (your user for rootless containers, root for the others), create
+`~/.config/systemd/user/podman-gladys.service` (rootless) or
+`/etc/systemd/system/podman-gladys.service` (root), replacing `192.168.1.20`
+with the address of the machine:
 
-## Scenes
+```ini
+[Unit]
+Description=Podman API service for Gladys
+After=network-online.target
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+[Service]
+ExecStart=/usr/bin/podman system service --time=0 tcp:192.168.1.20:8888
+Restart=on-failure
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+[Install]
+WantedBy=default.target
+```
+
+Then `systemctl --user enable --now podman-gladys` (rootless, plus
+`loginctl enable-linger` so that it runs without an open session) or
+`sudo systemctl enable --now podman-gladys`. To try it first, simply run
+`podman system service --time=0 tcp:192.168.1.20:8888` in a terminal.
+
+### 2. Protect the port
+
+**This service has no password**: whoever reaches the port controls Podman —
+starts any container, mounts any folder — and, for a root service, the whole
+machine. Never expose it to the Internet, and open it to the Gladys machine
+only (here `192.168.1.10`):
+
+```sh
+# firewalld (Fedora, RHEL, CentOS)
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.1.10" port port="8888" protocol="tcp" accept'
+sudo firewall-cmd --reload
+# ufw (Debian, Ubuntu)
+sudo ufw allow from 192.168.1.10 to any port 8888 proto tcp
+```
+
+With nftables or another firewall, the same rule: port 8888, Gladys only.
+Prefer a rootless service: it only sees the containers of its user.
+
+### 3. Configure the integration
+
+In Gladys, **Integrations → Podman → Configuration**:
+
+- **Podman API address**: `192.168.1.20:8888` (the IP or name of the
+  machine; port 8888 when omitted, `tcp://…` and `http://…` accepted);
+- **Machine name** (optional): shown in the device name, the widget and the
+  messages;
+- **Refresh interval**: 30 seconds by default;
+- **Language of the names**: the language of the feature names and of the
+  action messages.
+
+**Test the connection** reads Podman and says what it found.
+
+### 4. Add the devices
+
+In the **Discovery** tab, add the machine and the containers to follow. A
+container is identified by its **name**: recreated under the same name (a new
+image, Quadlet, podman-compose, auto-update), it keeps its device and its
+history.
+
+## The devices
+
+### The machine
+
+- **Reachable**: 1 while Podman answers;
+- **Podman version**;
+- **Containers running**, **Containers** (in total), **Unhealthy containers**.
+
+### Containers
+
+- **Running**: a switch; off stops the container (Podman sends SIGTERM and
+  waits 10 seconds before SIGKILL), on starts it;
+- **Healthy**: for a container with a healthcheck, 1 when healthy, 0 when
+  unhealthy (no value while it starts or is stopped);
+- **Restarts**: the restarts by the restart policy.
+
+A container removed from the machine shows as unreachable.
 
 ## Dashboard
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+The **Podman containers** widget shows the containers running out of the
+total, the unhealthy ones, and the list of the containers: the added ones (all
+of them when none is added), the problems first. Choose a container in its
+settings to get **Start** or **Stop** and **Restart** buttons for it;
+**Refresh** reads Podman again. The list and each button can be hidden.
+
+## Scenes
+
+### Triggers
+
+- **Container stopped unexpectedly**: a running container stopped (crash, out
+  of memory, `podman stop` by hand) or was restarted by its restart policy,
+  without Gladys asking. A stop asked by Gladys (switch, action, widget,
+  scene) fires nothing. Variables: container, state, exit code, restarts.
+- **Container unhealthy**: the healthcheck of a container fails (Podman marks
+  it unhealthy after its retries); announced again after it
+  recovered or restarted.
+- **Podman unreachable**: the API service no longer answers (two reads in a
+  row, 15 seconds apart); announced once per outage.
+
+The first two can be limited to one container device.
+
+### Actions
+
+- **Start a container**, **Stop a container**, **Restart a container**: the
+  container is chosen among the container devices; the outputs are its name
+  and whether it runs afterwards. The same three are buttons of the
+  configuration screen, next to **Test the connection**.
+
+### Scene ideas
+
+- Notify me with the exit code when the database container stops unexpectedly.
+- Restart the media server container every night at 4.
+- Start the game server container when I come home on Friday evening, stop it
+  at midnight.
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **The service does not answer**: check that it runs
+  (`systemctl --user status podman-gladys`), that it listens on the address of
+  the machine and not on `127.0.0.1`, and the firewall rule.
+- **No Podman API at this address**: the address points to something else — a
+  Docker engine is not supported, use its own integration.
+- **A rootless service lists no container**: it only sees the containers of
+  the user who runs it; start it with that user.
+- **No health**: Podman runs healthchecks through systemd timers; a container
+  without a healthcheck, or a machine without systemd, has none.
+- **Logs**: set `LOG_LEVEL=debug` on the integration to see every read.
+
+## Limits
+
+- One Podman machine per integration.
+- Pods are not devices: their containers are, one by one.
+- No CPU or memory figures: they depend on the cgroups of each machine.
+- The Podman API service has no authentication: protect its port (above).
+- Not affiliated with the Podman project or Red Hat.

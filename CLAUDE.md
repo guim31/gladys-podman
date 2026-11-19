@@ -16,8 +16,8 @@ its only runtime dependency. It started from the official JavaScript template.
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/hub.test.js              # one file
+node --test --test-name-pattern "crash"   # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
@@ -31,16 +31,24 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+index.js                          SDK wiring only: src/app.js registers the handlers before connect()
+src/app.js                        every SDK handler -> the hub (also used by the tests)
+src/hub.js                        the machine: reading timer, states, scene events, status, operations
+src/alerts.js                     transitions: stopped unexpectedly, unhealthy (persisted)
+src/devices.js                    host and container devices; names (4 languages)
+src/podman/client.js              libpod REST API through fetch: version, containers, start/stop/restart
+src/podman/model.js               raw list -> one snapshot (state, health, restarts)
+src/actions.js                    manifest actions (Configuration buttons)
 src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/widgets.js                    dashboard widget `containers` (manifest `widgets`)
+src/texts.js                      connection, error, operation, report texts (4 languages), ActionFailure
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
-gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+src/store.js                      /data/podman-state.json (what the triggers compare with)
+src/logs.js                       repeated failures logged once, then once when they heal
+gladys-assistant-integration.json manifest: name, config_schema, actions, triggers, widget...
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+                                  and helpers/fakePodman.js (real Podman 6.2 answers in test/fixtures/podman)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -58,8 +66,8 @@ test/                             node --test, against the SDK's fake Gladys (in
   one, `0`/`0` for a feature without a range (text, image...). A missing one
   can pass the publication on a core that does not check it, then fail when
   the user clicks "Add" (HTTP 422 `t_device_feature.min cannot be null`). The
-  SDK's fake Gladys refuses it on publication, and `test/devices.test.js`
-  checks them.
+  SDK's fake Gladys refuses it on publication, and
+  `test/gladys-rules.test.js` checks them.
 - **The container rootfs is read-only.** Write only under `/data`, the one
   writable volume. Never log tokens, passwords or API keys.
 - **Versions belong to the Release workflow** (Actions → Release). Never edit
@@ -78,8 +86,9 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, widget texts, feature names, manifest texts, and
+  `docs/{en,fr,de,es}.md`, kept in sync (`test/i18n.test.js`).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -222,6 +231,41 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
 - Les filtres de scène ne font qu'égalité et appartenance : un seuil reste le travail d'un capteur.
 - **Les clés de widgets, de déclencheurs et d'actions sont figées une fois publiées.**
 - `gladys_version` `>=5.1.0` dès qu'il y a widgets, déclencheurs ou actions de scène.
+
+## Podman (propre à ce dépôt)
+
+- **API** : libpod en HTTP par `fetch`, préfixe `/v4.0.0/libpod` (la `MinAPIVersion` de Podman 4, 5 et 6). Le
+  service `podman system service tcp:…` n'a **aucune authentification** : la doc impose une règle de pare-feu
+  réservant le port à Gladys. Le socket Unix est inatteignable depuis le bac à sable (aucun montage) : TCP
+  seulement. Une adresse avec identifiants ou `0.0.0.0` est refusée à la configuration.
+- **Réponses relevées sur Podman 6.2** (`test/fixtures/podman`) : `State` (created, running, exited…) ; la santé
+  est dans `Status` d'un conteneur **en marche** (`starting`, `healthy`, `unhealthy`, vide sans healthcheck) ;
+  `Restarts` compte les relances par la politique ; `IsInfra` marque le conteneur infra d'un pod (écarté). Start
+  et stop répondent **204**, ou **304** si déjà dans l'état ; restart 204 ; conteneur inconnu 404 avec
+  `cause: "no such container"` ; un Docker répond 404 aux chemins libpod (`not_podman`). Stop : `?timeout=10`,
+  restart : `?t=10`. `podman stop` d'un `sleep` ignore SIGTERM : 10 s puis SIGKILL (code 137).
+- **Healthchecks** : Podman les lance par des minuteurs **systemd**. Dans `quay.io/podman/stable` (sans systemd)
+  ils ne tournent jamais seuls : `podman healthcheck run` ou `GET /libpod/containers/{name}/healthcheck` à la
+  main ; il faut **trois échecs** (retries par défaut) avant `unhealthy` dans la liste, même si l'endpoint dit
+  `unhealthy` dès le premier. Les stats (`/containers/stats`) échouent dans ce conteneur (pas de cgroup) : pas de
+  CPU ni mémoire dans l'intégration.
+- **Identité** : le **nom** du conteneur, pas son id (recréé par Quadlet, podman-compose ou auto-update, il garde
+  son appareil). La fonctionnalité `healthy` n'existe que pour un conteneur vu au moins une fois avec un
+  healthcheck (`withHealth` persisté dans `/data`), sinon la structure changerait à chaque arrêt.
+- **Déclencheurs** : un arrêt ou un redémarrage demandé par Gladys est « attendu » (`Watcher.expect` avant
+  l'appel, `done` après la relecture) et ne déclenche rien : une scène qui arrête un conteneur ne doit pas se
+  déclencher elle-même. Un `Restarts` qui augmente entre deux lectures compte comme arrêt inattendu (la politique
+  a relancé un conteneur planté). Premier passage sans état sauvegardé : noté, pas annoncé.
+- **Messages** : tout échec d'action, de widget ou d'interrupteur lève `ActionFailure` (rouge) ; seul un succès
+  est renvoyé (vert), y compris « déjà arrêté » (304).
+
+## Vérifié sur un vrai Podman
+
+Le 19/11/2026, image de l'intégration lancée avec les contraintes du bac à sable (`--cap-drop ALL --security-opt
+no-new-privileges --read-only --memory 256m --pids-limit 256`, volume `/data`, réseau en pont
+`gladys-test-podman`, aucun port publié) contre `quay.io/podman/stable` (Podman 6.2.0, root, privilégié) : voir
+la section « Checked for real » du README. Non vérifié : une vraie instance Gladys, un service rootless,
+Podman 4 et 5, des healthchecks lancés par systemd.
 
 ## Store
 

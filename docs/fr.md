@@ -1,67 +1,178 @@
-# Template de démonstration
+# Podman
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Cette intégration amène dans Gladys les **conteneurs d'une machine Podman** :
+un appareil par conteneur choisi, avec son état (en marche ou non), sa santé
+quand il a un healthcheck et ses redémarrages, plus un appareil pour la
+machine elle-même. Un appareil conteneur est un interrupteur : éteint, il
+arrête le conteneur ; allumé, il le démarre. Les scènes peuvent réagir quand
+un conteneur s'arrête sans que Gladys le demande ou passe en mauvaise santé,
+et démarrer, arrêter ou redémarrer un conteneur ; un widget du tableau de bord
+liste les conteneurs, les problèmes d'abord.
 
-## Ce que vous obtenez
+Elle dialogue avec l'**API REST de Podman** sur votre réseau local ; rien ne
+passe par le cloud.
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+Testée contre un vrai Podman 6.2 (image `quay.io/podman/stable`, en root) : la
+liste, l'interrupteur, les actions, un conteneur tué dans le dos de Gladys, un
+healthcheck en échec, un conteneur dans un pod, un conteneur inconnu et un
+service d'API arrêté. Développée sans vraie instance Gladys : vos retours sont
+les bienvenus dans [les issues](https://github.com/guim31/gladys-podman/issues).
 
-## Configuration
+## Ce qu'il faut
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+- Gladys Assistant 5.1.0 ou plus récent.
+- Une machine Linux avec Podman 4.0 ou plus récent, joignable depuis la
+  machine Gladys.
+- Un terminal sur cette machine, une fois, pour lancer le service d'API Podman.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+## Mise en route
 
-## Actions
+### 1. Lancer le service d'API Podman
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+Gladys fait tourner l'intégration dans un bac à sable : elle ne peut pas
+atteindre le socket Unix de Podman, seulement un port TCP. Sur la machine
+Podman, avec le compte propriétaire des conteneurs (votre utilisateur pour des
+conteneurs rootless, root pour les autres), créez
+`~/.config/systemd/user/podman-gladys.service` (rootless) ou
+`/etc/systemd/system/podman-gladys.service` (root), en remplaçant
+`192.168.1.20` par l'adresse de la machine :
 
-## Scènes
+```ini
+[Unit]
+Description=Podman API service for Gladys
+After=network-online.target
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+[Service]
+ExecStart=/usr/bin/podman system service --time=0 tcp:192.168.1.20:8888
+Restart=on-failure
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+[Install]
+WantedBy=default.target
+```
+
+Puis `systemctl --user enable --now podman-gladys` (rootless, plus
+`loginctl enable-linger` pour qu'il tourne sans session ouverte) ou
+`sudo systemctl enable --now podman-gladys`. Pour essayer d'abord, lancez
+simplement `podman system service --time=0 tcp:192.168.1.20:8888` dans un
+terminal.
+
+### 2. Protéger le port
+
+**Ce service n'a pas de mot de passe** : qui atteint le port contrôle Podman
+— démarre n'importe quel conteneur, monte n'importe quel dossier — et, pour un
+service root, toute la machine. Ne l'exposez jamais à Internet, et ne l'ouvrez
+qu'à la machine Gladys (ici `192.168.1.10`) :
+
+```sh
+# firewalld (Fedora, RHEL, CentOS)
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.1.10" port port="8888" protocol="tcp" accept'
+sudo firewall-cmd --reload
+# ufw (Debian, Ubuntu)
+sudo ufw allow from 192.168.1.10 to any port 8888 proto tcp
+```
+
+Avec nftables ou un autre pare-feu, la même règle : port 8888, Gladys
+seulement. Préférez un service rootless : il ne voit que les conteneurs de
+son utilisateur.
+
+### 3. Configurer l'intégration
+
+Dans Gladys, **Intégrations → Podman → Configuration** :
+
+- **Adresse de l'API Podman** : `192.168.1.20:8888` (l'IP ou le nom de la
+  machine ; port 8888 s'il est omis, `tcp://…` et `http://…` acceptés) ;
+- **Nom de la machine** (facultatif) : affiché dans le nom de l'appareil, le
+  widget et les messages ;
+- **Intervalle de rafraîchissement** : 30 secondes par défaut ;
+- **Langue des noms** : la langue des noms des fonctionnalités et des
+  messages des actions.
+
+**Tester la connexion** lit Podman et dit ce qu'il a trouvé.
+
+### 4. Ajouter les appareils
+
+Dans l'onglet **Découverte**, ajoutez la machine et les conteneurs à suivre.
+Un conteneur est identifié par son **nom** : recréé sous le même nom (nouvelle
+image, Quadlet, podman-compose, mise à jour automatique), il garde son
+appareil et son historique.
+
+## Les appareils
+
+### La machine
+
+- **Joignable** : 1 tant que Podman répond ;
+- **Version de Podman** ;
+- **Conteneurs en marche**, **Conteneurs** (au total), **Conteneurs en mauvaise santé**.
+
+### Conteneurs
+
+- **En marche** : un interrupteur ; éteint, il arrête le conteneur (Podman
+  envoie SIGTERM et attend 10 secondes avant SIGKILL), allumé, il le démarre ;
+- **En bonne santé** : pour un conteneur avec healthcheck, 1 en bonne santé,
+  0 en mauvaise santé (pas de valeur pendant le démarrage ni à l'arrêt) ;
+- **Redémarrages** : les redémarrages par la politique de redémarrage.
+
+Un conteneur supprimé de la machine apparaît injoignable.
 
 ## Tableau de bord
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+Le widget **Conteneurs Podman** affiche les conteneurs en marche sur le total,
+ceux en mauvaise santé, et la liste des conteneurs : ceux ajoutés (tous si
+aucun ne l'est), les problèmes d'abord. Choisissez un conteneur dans ses
+réglages pour avoir les boutons **Démarrer** ou **Arrêter** et **Redémarrer** ;
+**Actualiser** relit Podman. La liste et chaque bouton peuvent être masqués.
+
+## Scènes
+
+### Déclencheurs
+
+- **Conteneur arrêté de façon inattendue** : un conteneur en marche s'est
+  arrêté (plantage, mémoire épuisée, `podman stop` à la main) ou a été relancé
+  par sa politique de redémarrage, sans que Gladys le demande. Un arrêt demandé
+  par Gladys (interrupteur, action, widget, scène) ne déclenche rien.
+  Variables : conteneur, état, code de sortie, redémarrages.
+- **Conteneur en mauvaise santé** : le healthcheck d'un conteneur échoue
+  (Podman le marque unhealthy après ses essais) ; annoncé de nouveau après un
+  rétablissement ou un redémarrage.
+- **Podman injoignable** : le service d'API ne répond plus (deux lectures de
+  suite, à 15 secondes d'intervalle) ; annoncé une fois par panne.
+
+Les deux premiers peuvent se limiter à un appareil conteneur.
+
+### Actions
+
+- **Démarrer un conteneur**, **Arrêter un conteneur**, **Redémarrer un conteneur** : le conteneur se choisit parmi les appareils conteneurs ; les
+  sorties sont son nom et s'il tourne ensuite. Les trois sont aussi des
+  boutons de l'écran de configuration, à côté de **Tester la connexion**.
+
+### Idées de scènes
+
+- Me prévenir avec le code de sortie quand le conteneur de la base de données
+  s'arrête de façon inattendue.
+- Redémarrer le conteneur du serveur multimédia chaque nuit à 4 h.
+- Démarrer le conteneur du serveur de jeu quand je rentre le vendredi soir,
+  l'arrêter à minuit.
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **Le service ne répond pas** : vérifiez qu'il tourne
+  (`systemctl --user status podman-gladys`), qu'il écoute sur l'adresse de la
+  machine et non sur `127.0.0.1`, et la règle du pare-feu.
+- **Aucune API Podman à cette adresse** : l'adresse mène ailleurs — un moteur
+  Docker n'est pas pris en charge, utilisez son intégration.
+- **Un service rootless ne liste aucun conteneur** : il ne voit que les
+  conteneurs de l'utilisateur qui le lance ; lancez-le avec cet utilisateur.
+- **Pas de santé** : Podman lance les healthchecks par des minuteurs systemd ;
+  un conteneur sans healthcheck, ou une machine sans systemd, n'en a pas.
+- **Logs** : réglez `LOG_LEVEL=debug` sur l'intégration pour voir chaque
+  lecture.
+
+## Limites
+
+- Une machine Podman par intégration.
+- Les pods ne sont pas des appareils : leurs conteneurs le sont, un par un.
+- Pas de processeur ni de mémoire : ils dépendent des cgroups de chaque
+  machine.
+- Le service d'API Podman n'a pas d'authentification : protégez son port
+  (ci-dessus).
+- Sans lien avec le projet Podman ni Red Hat.

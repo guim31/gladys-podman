@@ -1,177 +1,760 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Podman",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Your Podman containers in Gladys: state, health, restarts, and start or stop them.",
+    "fr": "Vos conteneurs Podman dans Gladys : état, santé, redémarrages, et les démarrer ou arrêter.",
+    "de": "Deine Podman-Container in Gladys: Zustand, Gesundheit, Neustarts, starten und stoppen.",
+    "es": "Sus contenedores Podman en Gladys: estado, salud, reinicios, e iniciarlos o detenerlos."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-podman:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-podman/main/cover.png",
+  "categories": ["servers"],
+  "transports": ["local"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your Podman machine",
+        "fr": "Votre machine Podman",
+        "de": "Deine Podman-Maschine",
+        "es": "Su máquina Podman"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Start the Podman API service on the machine (podman system service tcp:…, see the setup guide), then enter its address below. This service has no password: open its port to Gladys only.",
+        "fr": "Lancez le service d'API Podman sur la machine (podman system service tcp:…, voir le guide d'installation), puis saisissez son adresse ci-dessous. Ce service n'a pas de mot de passe : n'ouvrez son port qu'à Gladys.",
+        "de": "Starte den Podman-API-Dienst auf der Maschine (podman system service tcp:…, siehe Installationsanleitung) und gib unten seine Adresse ein. Der Dienst hat kein Passwort: Öffne seinen Port nur für Gladys.",
+        "es": "Inicie el servicio de API de Podman en la máquina (podman system service tcp:…, vea la guía de instalación) e introduzca abajo su dirección. Este servicio no tiene contraseña: abra su puerto solo a Gladys."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/guim31/gladys-podman/blob/main/docs/en.md",
+          "label": {
+            "en": "Setup guide",
+            "fr": "Guide d'installation",
+            "de": "Installationsanleitung",
+            "es": "Guía de instalación"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
-    },
-    {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
-    },
-    {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "key": "api_url",
+      "type": "string",
       "required": false,
-      "default": "celsius",
+      "label": {
+        "en": "Podman API address",
+        "fr": "Adresse de l'API Podman",
+        "de": "Adresse der Podman-API",
+        "es": "Dirección de la API de Podman"
+      },
+      "placeholder": {
+        "en": "192.168.1.20:8888",
+        "fr": "192.168.1.20:8888",
+        "de": "192.168.1.20:8888",
+        "es": "192.168.1.20:8888"
+      },
+      "description": {
+        "en": "The IP or name of the machine and the port of the service (8888 by default).",
+        "fr": "L'IP ou le nom de la machine et le port du service (8888 par défaut).",
+        "de": "Die IP oder der Name der Maschine und der Port des Dienstes (standardmäßig 8888).",
+        "es": "La IP o el nombre de la máquina y el puerto del servicio (8888 por defecto)."
+      }
+    },
+    {
+      "key": "options",
+      "type": "section",
+      "label": {
+        "en": "Options",
+        "fr": "Options",
+        "de": "Optionen",
+        "es": "Opciones"
+      },
+      "description": {
+        "en": "Only the devices added to Gladys receive values; the scene triggers work for every container.",
+        "fr": "Seuls les appareils ajoutés à Gladys reçoivent des valeurs ; les déclencheurs de scène fonctionnent pour tous les conteneurs.",
+        "de": "Nur die zu Gladys hinzugefügten Geräte erhalten Werte; die Szenen-Auslöser funktionieren für alle Container.",
+        "es": "Solo los dispositivos añadidos a Gladys reciben valores; los disparadores de escena funcionan para todos los contenedores."
+      }
+    },
+    {
+      "key": "host_name",
+      "type": "string",
+      "required": false,
+      "label": {
+        "en": "Machine name (optional)",
+        "fr": "Nom de la machine (facultatif)",
+        "de": "Name der Maschine (optional)",
+        "es": "Nombre de la máquina (opcional)"
+      },
+      "placeholder": {
+        "en": "Podman",
+        "fr": "Podman",
+        "de": "Podman",
+        "es": "Podman"
+      },
+      "description": {
+        "en": "Shown in the device name, the widget and the messages.",
+        "fr": "Affiché dans le nom de l'appareil, le widget et les messages.",
+        "de": "Wird im Gerätenamen, im Widget und in den Nachrichten angezeigt.",
+        "es": "Se muestra en el nombre del dispositivo, el widget y los mensajes."
+      }
+    },
+    {
+      "key": "poll_interval",
+      "type": "select",
+      "required": false,
+      "default": "30",
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle de rafraîchissement",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
+      },
+      "description": {
+        "en": "How often Podman is read.",
+        "fr": "Fréquence de lecture de Podman.",
+        "de": "Wie oft Podman gelesen wird.",
+        "es": "Frecuencia de lectura de Podman."
+      },
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "15",
+          "label": {
+            "en": "15 seconds",
+            "fr": "15 secondes",
+            "de": "15 Sekunden",
+            "es": "15 segundos"
+          }
+        },
+        {
+          "value": "30",
+          "label": {
+            "en": "30 seconds",
+            "fr": "30 secondes",
+            "de": "30 Sekunden",
+            "es": "30 segundos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        },
+        {
+          "value": "120",
+          "label": {
+            "en": "2 minutes",
+            "fr": "2 minutes",
+            "de": "2 Minuten",
+            "es": "2 minutos"
+          }
+        },
+        {
+          "value": "300",
+          "label": {
+            "en": "5 minutes",
+            "fr": "5 minutes",
+            "de": "5 Minuten",
+            "es": "5 minutos"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
-      "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
-      },
+      "key": "language",
+      "type": "select",
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "fr",
+      "label": {
+        "en": "Language of the names",
+        "fr": "Langue des noms",
+        "de": "Sprache der Namen",
+        "es": "Idioma de los nombres"
+      },
+      "description": {
+        "en": "Language of the feature names (set when a device is added) and of the action messages.",
+        "fr": "Langue des noms des fonctionnalités (fixés à l'ajout d'un appareil) et des messages des actions.",
+        "de": "Sprache der Funktionsnamen (beim Hinzufügen eines Geräts festgelegt) und der Aktionsmeldungen.",
+        "es": "Idioma de los nombres de las funciones (fijados al añadir un dispositivo) y de los mensajes de las acciones."
+      },
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "English",
+            "de": "English",
+            "es": "English"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "Français",
+            "fr": "Français",
+            "de": "Français",
+            "es": "Français"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "Deutsch",
+            "fr": "Deutsch",
+            "de": "Deutsch",
+            "es": "Deutsch"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Español",
+            "fr": "Español",
+            "de": "Español",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
+      "description": {
+        "en": "Reads Podman now and says what it found.",
+        "fr": "Lit Podman maintenant et dit ce qu'il a trouvé.",
+        "de": "Liest Podman jetzt und sagt, was gefunden wurde.",
+        "es": "Lee Podman ahora y dice lo que ha encontrado."
+      },
       "timeout_seconds": 30
     },
     {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
+      "key": "start_container",
+      "label": {
+        "en": "Start a container",
+        "fr": "Démarrer un conteneur",
+        "de": "Container starten",
+        "es": "Iniciar un contenedor"
+      },
+      "description": {
+        "en": "Starts the chosen container (nothing to do when it already runs).",
+        "fr": "Démarre le conteneur choisi (rien à faire s'il tourne déjà).",
+        "de": "Startet den gewählten Container (nichts zu tun, wenn er schon läuft).",
+        "es": "Inicia el contenedor elegido (nada que hacer si ya está en marcha)."
+      },
+      "timeout_seconds": 60,
       "fields": [
         {
-          "key": "device",
+          "key": "container",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          },
+          "description": {
+            "en": "A container device of this integration.",
+            "fr": "Un appareil conteneur de cette intégration.",
+            "de": "Ein Container-Gerät dieser Integration.",
+            "es": "Un dispositivo contenedor de esta integración."
+          }
         }
       ]
-    }
-  ],
-  "scene_triggers": [
+    },
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
-      "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+      "key": "stop_container",
+      "label": {
+        "en": "Stop a container",
+        "fr": "Arrêter un conteneur",
+        "de": "Container stoppen",
+        "es": "Detener un contenedor"
       },
+      "description": {
+        "en": "Stops the chosen container (10 seconds of grace, then it is killed).",
+        "fr": "Arrête le conteneur choisi (10 secondes de grâce, puis il est tué).",
+        "de": "Stoppt den gewählten Container (10 Sekunden Frist, dann wird er beendet).",
+        "es": "Detiene el contenedor elegido (10 segundos de gracia, después se fuerza)."
+      },
+      "timeout_seconds": 60,
       "fields": [
         {
-          "key": "device",
+          "key": "container",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
-        }
-      ],
-      "variables": [
-        {
-          "key": "target",
-          "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          },
+          "description": {
+            "en": "A container device of this integration.",
+            "fr": "Un appareil conteneur de cette intégration.",
+            "de": "Ein Container-Gerät dieser Integration.",
+            "es": "Un dispositivo contenedor de esta integración."
+          }
         }
       ]
-    }
-  ],
-  "scene_actions": [
+    },
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "restart_container",
+      "label": {
+        "en": "Restart a container",
+        "fr": "Redémarrer un conteneur",
+        "de": "Container neu starten",
+        "es": "Reiniciar un contenedor"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "Stops then starts the chosen container again.",
+        "fr": "Arrête puis redémarre le conteneur choisi.",
+        "de": "Stoppt den gewählten Container und startet ihn wieder.",
+        "es": "Detiene y vuelve a iniciar el contenedor elegido."
+      },
+      "timeout_seconds": 60,
       "fields": [
         {
-          "key": "device",
+          "key": "container",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ],
-      "outputs": [
-        {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          },
+          "description": {
+            "en": "A container device of this integration.",
+            "fr": "Un appareil conteneur de cette intégration.",
+            "de": "Ein Container-Gerät dieser Integration.",
+            "es": "Un dispositivo contenedor de esta integración."
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "containers",
+      "label": {
+        "en": "Podman containers",
+        "fr": "Conteneurs Podman",
+        "de": "Podman-Container",
+        "es": "Contenedores Podman"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "icon": "box",
+      "description": {
+        "en": "Containers running and unhealthy, their list, and buttons for one container.",
+        "fr": "Conteneurs en marche et en mauvaise santé, leur liste, et des boutons pour un conteneur.",
+        "de": "Laufende und fehlerhafte Container, ihre Liste und Schaltflächen für einen Container.",
+        "es": "Contenedores en marcha y con mala salud, su lista y botones para un contenedor."
+      },
+      "settings": [
+        {
+          "key": "container",
+          "type": "select",
+          "source": "devices",
+          "required": false,
+          "label": {
+            "en": "Container with buttons",
+            "fr": "Conteneur avec boutons",
+            "de": "Container mit Schaltflächen",
+            "es": "Contenedor con botones"
+          },
+          "description": {
+            "en": "Shows Start or Stop and Restart for this container. Empty: no button.",
+            "fr": "Affiche Démarrer ou Arrêter et Redémarrer pour ce conteneur. Vide : aucun bouton.",
+            "de": "Zeigt Starten oder Stoppen und Neu starten für diesen Container. Leer: keine Schaltfläche.",
+            "es": "Muestra Iniciar o Detener y Reiniciar para este contenedor. Vacío: ningún botón."
+          }
+        },
+        {
+          "key": "show_list",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "label": {
+            "en": "Show the list of containers",
+            "fr": "Afficher la liste des conteneurs",
+            "de": "Liste der Container anzeigen",
+            "es": "Mostrar la lista de contenedores"
+          },
+          "description": {
+            "en": "The added containers (all of them if none was added), the problems first.",
+            "fr": "Les conteneurs ajoutés (tous si aucun ne l'est), les problèmes d'abord.",
+            "de": "Die hinzugefügten Container (alle, wenn keiner hinzugefügt ist), Probleme zuerst.",
+            "es": "Los contenedores añadidos (todos si no hay ninguno), los problemas primero."
+          }
+        },
+        {
+          "key": "show_buttons",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "label": {
+            "en": "Show the container buttons",
+            "fr": "Afficher les boutons du conteneur",
+            "de": "Container-Schaltflächen anzeigen",
+            "es": "Mostrar los botones del contenedor"
+          }
+        },
+        {
+          "key": "show_refresh",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "label": {
+            "en": "Show the Refresh button",
+            "fr": "Afficher le bouton Actualiser",
+            "de": "Schaltfläche Aktualisieren anzeigen",
+            "es": "Mostrar el botón Actualizar"
+          }
+        }
+      ],
+      "action_timeout_seconds": 60
+    }
+  ],
+  "scene_triggers": [
+    {
+      "key": "container_stopped",
+      "label": {
+        "en": "Container stopped unexpectedly",
+        "fr": "Conteneur arrêté de façon inattendue",
+        "de": "Container unerwartet gestoppt",
+        "es": "Contenedor detenido inesperadamente"
+      },
+      "description": {
+        "en": "A container stopped or was restarted by its restart policy without Gladys asking (crash, out of memory…).",
+        "fr": "Un conteneur s'est arrêté ou a été relancé par sa politique de redémarrage sans que Gladys le demande (plantage, mémoire…).",
+        "de": "Ein Container wurde gestoppt oder von seiner Neustart-Richtlinie neu gestartet, ohne dass Gladys es verlangt hat (Absturz, Speicher …).",
+        "es": "Un contenedor se ha detenido o su política de reinicio lo ha relanzado sin que Gladys lo pida (fallo, memoria…)."
+      },
+      "fields": [
+        {
+          "key": "container",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          },
+          "description": {
+            "en": "A container device. Empty: every container.",
+            "fr": "Un appareil conteneur. Vide : tous les conteneurs.",
+            "de": "Ein Container-Gerät. Leer: alle Container.",
+            "es": "Un dispositivo contenedor. Vacío: todos los contenedores."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "container_name",
+          "type": "string",
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          }
+        },
+        {
+          "key": "state",
+          "type": "string",
+          "label": {
+            "en": "State",
+            "fr": "État",
+            "de": "Zustand",
+            "es": "Estado"
+          }
+        },
+        {
+          "key": "exit_code",
+          "type": "number",
+          "label": {
+            "en": "Exit code",
+            "fr": "Code de sortie",
+            "de": "Exit-Code",
+            "es": "Código de salida"
+          }
+        },
+        {
+          "key": "restarts",
+          "type": "number",
+          "label": {
+            "en": "Restarts",
+            "fr": "Redémarrages",
+            "de": "Neustarts",
+            "es": "Reinicios"
+          }
+        }
+      ]
+    },
+    {
+      "key": "container_unhealthy",
+      "label": {
+        "en": "Container unhealthy",
+        "fr": "Conteneur en mauvaise santé",
+        "de": "Container fehlerhaft",
+        "es": "Contenedor con mala salud"
+      },
+      "description": {
+        "en": "The healthcheck of a container fails (Podman marks it unhealthy). Announced again after a recovery or a restart.",
+        "fr": "Le healthcheck d'un conteneur échoue (Podman le marque unhealthy). Annoncé de nouveau après un rétablissement ou un redémarrage.",
+        "de": "Der Healthcheck eines Containers schlägt fehl (Podman markiert ihn als unhealthy). Erneut gemeldet nach Erholung oder Neustart.",
+        "es": "El healthcheck de un contenedor falla (Podman lo marca unhealthy). Se anuncia de nuevo tras recuperarse o reiniciarse."
+      },
+      "fields": [
+        {
+          "key": "container",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          },
+          "description": {
+            "en": "A container device. Empty: every container.",
+            "fr": "Un appareil conteneur. Vide : tous les conteneurs.",
+            "de": "Ein Container-Gerät. Leer: alle Container.",
+            "es": "Un dispositivo contenedor. Vacío: todos los contenedores."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "container_name",
+          "type": "string",
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          }
+        }
+      ]
+    },
+    {
+      "key": "podman_unreachable",
+      "label": {
+        "en": "Podman unreachable",
+        "fr": "Podman injoignable",
+        "de": "Podman nicht erreichbar",
+        "es": "Podman inaccesible"
+      },
+      "description": {
+        "en": "The Podman API service no longer answers (two reads in a row, 15 seconds apart).",
+        "fr": "Le service d'API Podman ne répond plus (deux lectures de suite, à 15 secondes d'intervalle).",
+        "de": "Der Podman-API-Dienst antwortet nicht mehr (zwei Lesevorgänge in Folge, im Abstand von 15 Sekunden).",
+        "es": "El servicio de API de Podman ya no responde (dos lecturas seguidas, con 15 segundos de intervalo)."
+      },
+      "variables": [
+        {
+          "key": "host_name",
+          "type": "string",
+          "label": {
+            "en": "Machine",
+            "fr": "Machine",
+            "de": "Maschine",
+            "es": "Máquina"
+          }
+        }
+      ]
+    }
+  ],
+  "scene_actions": [
+    {
+      "key": "start_container",
+      "label": {
+        "en": "Start a container",
+        "fr": "Démarrer un conteneur",
+        "de": "Container starten",
+        "es": "Iniciar un contenedor"
+      },
+      "description": {
+        "en": "Starts the chosen container (nothing to do when it already runs).",
+        "fr": "Démarre le conteneur choisi (rien à faire s'il tourne déjà).",
+        "de": "Startet den gewählten Container (nichts zu tun, wenn er schon läuft).",
+        "es": "Inicia el contenedor elegido (nada que hacer si ya está en marcha)."
+      },
+      "timeout_seconds": 60,
+      "fields": [
+        {
+          "key": "container",
+          "type": "select",
+          "source": "devices",
+          "required": true,
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          },
+          "description": {
+            "en": "A container device of this integration.",
+            "fr": "Un appareil conteneur de cette intégration.",
+            "de": "Ein Container-Gerät dieser Integration.",
+            "es": "Un dispositivo contenedor de esta integración."
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "key": "container_name",
+          "type": "string",
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          }
+        },
+        {
+          "key": "running",
+          "type": "boolean",
+          "label": {
+            "en": "Running",
+            "fr": "En marche",
+            "de": "Läuft",
+            "es": "En marcha"
+          }
+        }
+      ]
+    },
+    {
+      "key": "stop_container",
+      "label": {
+        "en": "Stop a container",
+        "fr": "Arrêter un conteneur",
+        "de": "Container stoppen",
+        "es": "Detener un contenedor"
+      },
+      "description": {
+        "en": "Stops the chosen container (10 seconds of grace, then it is killed).",
+        "fr": "Arrête le conteneur choisi (10 secondes de grâce, puis il est tué).",
+        "de": "Stoppt den gewählten Container (10 Sekunden Frist, dann wird er beendet).",
+        "es": "Detiene el contenedor elegido (10 segundos de gracia, después se fuerza)."
+      },
+      "timeout_seconds": 60,
+      "fields": [
+        {
+          "key": "container",
+          "type": "select",
+          "source": "devices",
+          "required": true,
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          },
+          "description": {
+            "en": "A container device of this integration.",
+            "fr": "Un appareil conteneur de cette intégration.",
+            "de": "Ein Container-Gerät dieser Integration.",
+            "es": "Un dispositivo contenedor de esta integración."
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "key": "container_name",
+          "type": "string",
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          }
+        },
+        {
+          "key": "running",
+          "type": "boolean",
+          "label": {
+            "en": "Running",
+            "fr": "En marche",
+            "de": "Läuft",
+            "es": "En marcha"
+          }
+        }
+      ]
+    },
+    {
+      "key": "restart_container",
+      "label": {
+        "en": "Restart a container",
+        "fr": "Redémarrer un conteneur",
+        "de": "Container neu starten",
+        "es": "Reiniciar un contenedor"
+      },
+      "description": {
+        "en": "Stops then starts the chosen container again.",
+        "fr": "Arrête puis redémarre le conteneur choisi.",
+        "de": "Stoppt den gewählten Container und startet ihn wieder.",
+        "es": "Detiene y vuelve a iniciar el contenedor elegido."
+      },
+      "timeout_seconds": 60,
+      "fields": [
+        {
+          "key": "container",
+          "type": "select",
+          "source": "devices",
+          "required": true,
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          },
+          "description": {
+            "en": "A container device of this integration.",
+            "fr": "Un appareil conteneur de cette intégration.",
+            "de": "Ein Container-Gerät dieser Integration.",
+            "es": "Un dispositivo contenedor de esta integración."
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "key": "container_name",
+          "type": "string",
+          "label": {
+            "en": "Container",
+            "fr": "Conteneur",
+            "de": "Container",
+            "es": "Contenedor"
+          }
+        },
+        {
+          "key": "running",
+          "type": "boolean",
+          "label": {
+            "en": "Running",
+            "fr": "En marche",
+            "de": "Läuft",
+            "es": "En marcha"
+          }
+        }
+      ]
     }
   ]
 }
