@@ -50,7 +50,14 @@ test('errors are sorted by kind', async () => {
   const slow = new PodmanClient({
     url: API_URL,
     fetch: (url, { signal }) =>
-      new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason))),
+      new Promise((_, reject) => {
+        // AbortSignal.timeout does not keep the event loop alive (Node 22).
+        const keepAlive = setTimeout(() => {}, 5000);
+        signal.addEventListener('abort', () => {
+          clearTimeout(keepAlive);
+          reject(signal.reason);
+        });
+      }),
     timings: { readTimeoutMs: 20 },
   });
   assert.equal(await kindOf(slow.read()), ERROR_KINDS.UNREACHABLE);
