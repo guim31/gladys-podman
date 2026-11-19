@@ -30,6 +30,18 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration keeps: the configuration in Gladys (the address of the
+Podman API service, no secret), and `/data/podman-state.json` (the last state,
+health and restart count of each container, to fire the scene triggers once).
+It only talks to the Podman API service on the local network, in plain HTTP
+(or HTTPS through a reverse proxy).
+
+The Podman API service itself has **no authentication**: whoever reaches its
+port controls Podman, and the whole machine for a root service. The
+documentation asks to open that port to the Gladys machine only; a weakness
+of that service is out of scope here.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+Podman (see its [security policy](https://github.com/containers/podman/security/policy)),
+and the other third-party services and devices.
