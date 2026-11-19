@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-19
+
 ### Added
 
 - The containers of a Podman machine in Gladys, through the Podman REST API
@@ -28,3 +30,6 @@ the notes of the version's GitHub Release.
   chosen container.
 - Texts, feature names and documentation in English, French, German and
   Spanish.
+
+[Unreleased]: https://github.com/guim31/gladys-podman/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-podman/releases/tag/v1.0.0
